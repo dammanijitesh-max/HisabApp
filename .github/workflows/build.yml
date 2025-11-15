@@ -1,34 +1,71 @@
-name: Build APK
+name: Build Kivy APK
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y python3-pip openjdk-17-jdk unzip git
-        pip3 install --user buildozer
-        pip3 install --user cython==0.29.36
+      - name: Set up Java (required by Android SDK/Build tools)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
-    - name: Install p4a (stable)
-      run: |
-        pip3 install --user "python-for-android==2024.6.1"
+      - name: Install OS packages required for building
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            openjdk-17-jdk unzip git autoconf automake libtool pkg-config \
+            build-essential zlib1g-dev libncurses5 libncurses5-dev \
+            libssl-dev libffi-dev libbz2-dev libpng-dev
 
-    - name: Build APK
-      run: |
-        export PATH=$PATH:~/.local/bin
-        buildozer android debug
+      - name: Install Python tools (user)
+        env:
+          PATH: ${{ runner.workspace }}/.local/bin:${{ env.PATH }}
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel --user
+          python3 -m pip install --user buildozer==1.5.0 cython==0.29.36
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: hisab-app-apk
-        path: bin/*.apk
+      - name: Install python-for-android (stable release)
+        run: |
+          python3 -m pip install --user "python-for-android==2024.6.1"
+
+      - name: Ensure ~/.local/bin is in PATH
+        run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Show environment (debug)
+        run: |
+          echo "PATH=$PATH"
+          python3 -m pip show buildozer || true
+          python3 -m pip show python-for-android || true
+
+      - name: Clean any previous buildozer state
+        run: |
+          rm -rf .buildozer build dist bin
+          ls -la
+
+      - name: Build APK (debug)
+        env:
+          ANDROIDSDK: ${{ runner.workspace }}/.buildozer/android/platform/android-sdk
+          ANDROIDNDK: ${{ runner.workspace }}/.buildozer/android/platform/android-ndk
+        run: |
+          # make sure buildozer command available
+          export PATH="$HOME/.local/bin:$PATH"
+          buildozer android debug --verbose
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hisabapp-apk
+          path: |
+            bin/*.apk
+            bin/*.aab
+            .buildozer/android/platform/build-*/*.log
