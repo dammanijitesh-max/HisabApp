@@ -1,0 +1,54 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # -----------------------------
+    # Install system requirements
+    # -----------------------------
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          python3 python3-pip python3-setuptools python3-wheel \
+          git zip unzip libtool autoconf automake pkg-config \
+          openjdk-17-jdk
+
+    # -----------------------------
+    # Fix PATH for pip --user
+    # -----------------------------
+    - name: Add local bin to PATH
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    # -----------------------------
+    # Install Buildozer + Cython
+    # -----------------------------
+    - name: Install Buildozer + Cython
+      run: |
+        python3 -m pip install --upgrade pip setuptools wheel --user
+        python3 -m pip install --user buildozer==1.5.0 cython==0.29.36
+
+    # -----------------------------
+    # Build the APK
+    # -----------------------------
+    - name: Build APK
+      run: |
+        cd app
+        buildozer android debug
+
+    # -----------------------------
+    # Upload built APK
+    # -----------------------------
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: HisabApp-APK
+        path: app/bin/*.apk
