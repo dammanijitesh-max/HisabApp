@@ -28,3 +28,6 @@ android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 android.disable_window_transparency = True
 android.enable_android_debug_bridge = True
 
+p4a.branch = release-2024.01.21
+
+
