@@ -5,50 +5,32 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout Repository
       uses: actions/checkout@v4
 
-    # -----------------------------
-    # Install system requirements
-    # -----------------------------
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y \
-          python3 python3-pip python3-setuptools python3-wheel \
-          git zip unzip libtool autoconf automake pkg-config \
-          openjdk-17-jdk
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-    # -----------------------------
-    # Fix PATH for pip --user
-    # -----------------------------
-    - name: Add local bin to PATH
-      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-    # -----------------------------
-    # Install Buildozer + Cython
-    # -----------------------------
-    - name: Install Buildozer + Cython
+    - name: Install Build Tools
       run: |
         python3 -m pip install --upgrade pip setuptools wheel --user
-        python3 -m pip install --user buildozer==1.5.0 cython==0.29.36
+        python3 -m pip install --user buildozer cython==0.29.36
 
-    # -----------------------------
-    # Build the APK
-    # -----------------------------
+    - name: Install Python for Android (p4a latest stable)
+      run: |
+        python3 -m pip install --user git+https://github.com/kivy/python-for-android.git
+
+    - name: Install Android SDK dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git openjdk-17-jdk zip unzip autoconf libtool pkg-config
+
     - name: Build APK
       run: |
-        cd app
+        export PATH=$HOME/.local/bin:$PATH
         buildozer android debug
-
-    # -----------------------------
-    # Upload built APK
-    # -----------------------------
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: HisabApp-APK
-        path: app/bin/*.apk
